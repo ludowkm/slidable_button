@@ -80,6 +80,9 @@ class SlidableButton extends StatefulWidget {
   /// Default value false
   final bool tristate;
 
+  final Color progressColor;
+  final List<BoxShadow>? buttonShadow;
+
   /// Creates a [SlidableButton]
   @Deprecated(
       'Use [VerticalSlidableButton] or [HorizontalSlidableButton] instead of this widget.')
@@ -90,6 +93,8 @@ class SlidableButton extends StatefulWidget {
     this.child,
     this.disabledColor,
     this.buttonColor,
+    this.progressColor = Colors.green,
+    this.buttonShadow,
     this.color,
     this.label,
     this.border,
@@ -204,11 +209,11 @@ class _SlidableButtonState extends State<SlidableButton>
               width: _buttonWidth,
               height: widget.height,
               decoration: BoxDecoration(
-                borderRadius: widget.borderRadius,
-                color: widget.onChanged == null
-                    ? widget.disabledColor ?? Colors.grey
-                    : widget.buttonColor,
-              ),
+                  borderRadius: widget.borderRadius,
+                  color: widget.onChanged == null
+                      ? widget.disabledColor ?? Colors.grey
+                      : widget.buttonColor,
+                  boxShadow: widget.buttonShadow),
               child: widget.onChanged == null
                   ? Center(child: widget.label)
                   : GestureDetector(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../slidable_button.dart';
-import 'slidable_button_clipper.dart';
 import 'slidable_button_simulation.dart';
 
 class HorizontalSlidableButton extends StatefulWidget {
@@ -34,6 +34,8 @@ class HorizontalSlidableButton extends StatefulWidget {
   /// Default value is `const BorderRadius.all(const Radius.circular(60.0))`
   final BorderRadius borderRadius;
 
+  final BorderRadius buttonRadius;
+
   /// The height of this widget (button and it's background).
   ///
   /// Default value is 36.0.
@@ -48,11 +50,6 @@ class HorizontalSlidableButton extends StatefulWidget {
   ///
   /// The minimum size is [height], and the maximum size is three quarters from [width].
   final double? buttonWidth;
-
-  /// It means the effect while and after sliding.
-  ///
-  /// If `true`, [child] will disappear along with button sliding. Otherwise, it stay visible even the button was slide.
-  final bool dismissible;
 
   /// Initial button position. It can on the left or right.
   final SlidableButtonPosition initialPosition;
@@ -85,28 +82,39 @@ class HorizontalSlidableButton extends StatefulWidget {
   /// Default value true
   final bool autoSlide;
 
+  final Color progressColor;
+  final List<BoxShadow>? buttonShadow;
+  final Widget? doneLabel;
+  final Widget? doneChild;
+  final ValueNotifier<bool> notifier;
+
   /// Creates a [SlidableButton]
-  const HorizontalSlidableButton({
-    Key? key,
-    required this.onChanged,
-    this.controller,
-    this.child,
-    this.autoSlide = true,
-    this.disabledColor,
-    this.buttonColor,
-    this.color,
-    this.label,
-    this.border,
-    this.borderRadius = const BorderRadius.all(Radius.circular(60.0)),
-    this.initialPosition = SlidableButtonPosition.start,
-    this.completeSlideAt = 0.5,
-    this.height = 36.0,
-    this.width = 120.0,
-    this.buttonWidth,
-    this.dismissible = true,
-    this.isRestart = false,
-    this.tristate = false,
-  }) : super(key: key);
+  const HorizontalSlidableButton(
+      {Key? key,
+      required this.onChanged,
+      this.controller,
+      this.child,
+      this.autoSlide = true,
+      this.disabledColor,
+      this.buttonColor,
+      this.progressColor = Colors.green,
+      this.buttonShadow,
+      this.color,
+      this.buttonRadius = const BorderRadius.all(Radius.circular(10)),
+      this.label,
+      required this.notifier,
+      this.border,
+      this.borderRadius = const BorderRadius.all(Radius.circular(60.0)),
+      this.initialPosition = SlidableButtonPosition.start,
+      this.completeSlideAt = 0.5,
+      this.height = 36.0,
+      this.width = 120.0,
+      this.buttonWidth,
+      this.isRestart = false,
+      this.tristate = false,
+      this.doneLabel,
+      this.doneChild})
+      : super(key: key);
 
   @override
   State<HorizontalSlidableButton> createState() =>
@@ -127,7 +135,7 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
       _positionedKey.currentContext!.findRenderObject() as RenderBox?;
 
   RenderBox? get _container =>
-      _containerKey.currentContext!.findRenderObject() as RenderBox?;
+      _containerKey.currentContext?.findRenderObject() as RenderBox?;
 
   double get _buttonWidth {
     final width = widget.buttonWidth ?? double.minPositive;
@@ -136,14 +144,20 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
     return width;
   }
 
+  bool isDone = false;
+
   @override
   void initState() {
     super.initState();
+    widget.notifier.addListener(onNotifier);
     _controller =
         widget.controller ?? AnimationController.unbounded(vsync: this);
     _contentAnimation = Tween<double>(begin: 1.0, end: 0.0)
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _initialPositionController();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      setState(() {});
+    });
   }
 
   void _initialPositionController() {
@@ -154,8 +168,18 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
     }
   }
 
+  void onNotifier() {
+    if (!widget.notifier.value) {
+      _controller.value = 0.0;
+    }
+    setState(() {
+      isDone = widget.notifier.value;
+    });
+  }
+
   @override
   void dispose() {
+    widget.notifier.removeListener(onNotifier);
     _controller.dispose();
     super.dispose();
   }
@@ -168,59 +192,72 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
       decoration: BoxDecoration(
         border: widget.border,
         borderRadius: widget.borderRadius,
+        color: widget.color,
       ),
-      child: Stack(
-        key: _containerKey,
-        children: <Widget>[
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: widget.color,
-              borderRadius: widget.borderRadius,
-            ),
-            child: widget.dismissible
-                ? ClipRRect(
-                    clipper: SlidableButtonClipper(
-                      animation: _controller,
+      child: ClipRRect(
+        borderRadius: widget.borderRadius,
+        child: Stack(
+          key: _containerKey,
+          children: <Widget>[
+            if (_container != null)
+              AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return SizedBox(
+                        width: _controller.value * _container!.size.width,
+                        child: child);
+                  },
+                  child: Container(
+                    width: widget.width,
+                    height: widget.height,
+                    decoration: BoxDecoration(
+                      color: widget.progressColor,
                       borderRadius: widget.borderRadius,
                     ),
-                    borderRadius: widget.borderRadius,
-                    child: SizedBox.expand(
-                      child: FadeTransition(
-                        opacity: _contentAnimation,
-                        child: widget.child,
-                      ),
-                    ),
-                  )
-                : SizedBox.expand(child: widget.child),
-          ),
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) => Align(
-              alignment: Alignment((_controller.value * 2.0) - 1.0, 0.0),
-              child: child,
+                  )),
+            FadeTransition(
+              opacity: _contentAnimation,
+              child: widget.child,
             ),
-            child: Container(
-              key: _positionedKey,
-              height: widget.height,
-              width: _buttonWidth,
-              decoration: BoxDecoration(
-                borderRadius: widget.borderRadius,
-                color: widget.onChanged == null
-                    ? widget.disabledColor ?? Colors.grey
-                    : widget.buttonColor,
+            AnimatedSwitcher(
+                duration: Duration(milliseconds: 200),
+                child: isDone && widget.doneChild != null
+                    ? widget.doneChild!
+                    : SizedBox.shrink()),
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) => Align(
+                alignment: Alignment((_controller.value * 2.0) - 1.0, 0.0),
+                child: child,
               ),
-              child: widget.onChanged == null
-                  ? Center(child: widget.label)
-                  : GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onHorizontalDragStart: _onDragStart,
-                      onHorizontalDragUpdate: _onDragUpdate,
-                      onHorizontalDragEnd: _onDragEnd,
-                      child: Center(child: widget.label),
-                    ),
+              child: Container(
+                key: _positionedKey,
+                height: widget.height,
+                width: _buttonWidth,
+                margin: const EdgeInsets.all(4.0),
+                decoration: BoxDecoration(
+                    borderRadius: widget.buttonRadius,
+                    color: widget.onChanged == null
+                        ? widget.disabledColor ?? Colors.grey
+                        : widget.buttonColor,
+                    boxShadow: widget.buttonShadow),
+                child: widget.onChanged == null
+                    ? Center(child: widget.label)
+                    : GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onHorizontalDragStart: _onDragStart,
+                        onHorizontalDragUpdate: _onDragUpdate,
+                        onHorizontalDragEnd: _onDragEnd,
+                        child: Center(
+                            child: AnimatedSwitcher(
+                                duration: Duration(milliseconds: 200),
+                                child:
+                                    !isDone ? widget.label : widget.doneLabel)),
+                      ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -285,6 +322,9 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
   }
 
   void _onChanged(SlidableButtonPosition position) {
+    if (position == SlidableButtonPosition.end) {
+      widget.notifier.value = true;
+    }
     if (widget.onChanged != null) {
       widget.onChanged!(position);
     }
