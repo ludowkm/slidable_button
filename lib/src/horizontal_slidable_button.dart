@@ -34,6 +34,8 @@ class HorizontalSlidableButton extends StatefulWidget {
   /// Default value is `const BorderRadius.all(const Radius.circular(60.0))`
   final BorderRadius borderRadius;
 
+  final BorderRadius buttonRadius;
+
   /// The height of this widget (button and it's background).
   ///
   /// Default value is 36.0.
@@ -95,6 +97,7 @@ class HorizontalSlidableButton extends StatefulWidget {
     this.disabledColor,
     this.buttonColor,
     this.color,
+    this.buttonRadius = const BorderRadius.all(Radius.circular(10)),
     this.label,
     this.border,
     this.borderRadius = const BorderRadius.all(Radius.circular(60.0)),
@@ -203,8 +206,9 @@ class _HorizontalSlidableButtonState extends State<HorizontalSlidableButton>
               key: _positionedKey,
               height: widget.height,
               width: _buttonWidth,
+              margin: const EdgeInsets.all(4.0),
               decoration: BoxDecoration(
-                borderRadius: widget.borderRadius,
+                borderRadius: widget.buttonRadius,
                 color: widget.onChanged == null
                     ? widget.disabledColor ?? Colors.grey
                     : widget.buttonColor,
